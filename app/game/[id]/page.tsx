@@ -31,6 +31,7 @@ export default function GamePage() {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isActing, setIsActing] = useState(false);
   const prevPhaseRef = useRef<string | null>(null);
 
   const apiPost = useCallback(
@@ -119,6 +120,8 @@ export default function GamePage() {
     const pusher = getPusherClient();
     const channel = pusher.subscribe(`game-${gameId}`);
 
+    pusher.connection.bind('connected', refreshGameState);
+
     channel.bind('state-update', (state: ClientGameState) => {
       const prevPhase = prevPhaseRef.current;
       prevPhaseRef.current = state.phase;
@@ -140,6 +143,7 @@ export default function GamePage() {
     });
 
     return () => {
+      pusher.connection.unbind('connected', refreshGameState);
       channel.unbind_all();
       pusher.unsubscribe(`game-${gameId}`);
     };
@@ -160,10 +164,15 @@ export default function GamePage() {
   }
 
   async function handleStart() {
+    if (isActing) return;
+    setIsActing(true);
     try {
       await apiPost('start');
     } catch (err) {
       console.error('Start failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
     }
   }
 
@@ -182,38 +191,58 @@ export default function GamePage() {
   }
 
   async function handleReveal() {
+    if (isActing) return;
+    setIsActing(true);
     try {
       await apiPost('reveal');
       await refreshGameState();
     } catch (err) {
       console.error('Reveal failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
     }
   }
 
   async function handleNext() {
+    if (isActing) return;
+    setIsActing(true);
     try {
       await apiPost('next');
       await refreshGameState();
     } catch (err) {
       console.error('Next failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
     }
   }
 
   async function handleSkip() {
+    if (isActing) return;
+    setIsActing(true);
     try {
       await apiPost('skip');
       await refreshGameState();
     } catch (err) {
       console.error('Skip failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
     }
   }
 
   async function handleReset() {
+    if (isActing) return;
+    setIsActing(true);
     try {
       await apiPost('reset');
       await refreshGameState();
     } catch (err) {
       console.error('Reset failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
     }
   }
 
@@ -343,7 +372,7 @@ export default function GamePage() {
           {isHost ? (
             <button
               onClick={handleStart}
-              disabled={players.length < 2}
+              disabled={players.length < 2 || isActing}
               className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-lg py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {players.length < 2 ? 'Waiting for more players...' : 'Start Game'}
@@ -433,15 +462,17 @@ export default function GamePage() {
             <div className="flex gap-3">
               <button
                 onClick={handleSkip}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium py-2.5 rounded-lg transition-colors text-sm border border-slate-600"
+                disabled={isActing}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium py-2.5 rounded-lg transition-colors text-sm border border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Skip Card
               </button>
               <button
                 onClick={handleReveal}
-                className="flex-1 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold py-2.5 rounded-lg transition-colors text-sm"
+                disabled={isActing}
+                className="flex-1 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold py-2.5 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Reveal Answers
+                {isActing ? 'Revealing...' : 'Reveal Answers'}
               </button>
             </div>
           )}
@@ -575,7 +606,8 @@ export default function GamePage() {
           {isHost && (
             <button
               onClick={handleNext}
-              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-lg py-4 rounded-xl transition-colors"
+              disabled={isActing}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-lg py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {gameState.winnerId ? 'See Final Results →' : 'Next Card →'}
             </button>
@@ -633,7 +665,8 @@ export default function GamePage() {
           {isHost ? (
             <button
               onClick={handleReset}
-              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-lg py-4 rounded-xl transition-colors mb-3"
+              disabled={isActing}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-lg py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
             >
               Play Again
             </button>
