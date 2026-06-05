@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGame, saveGame } from '@/lib/redis';
 import { broadcastState } from '@/lib/pusher-server';
-import { sanitizeState, shuffleDeck } from '@/lib/game';
+import { shuffleDeck } from '@/lib/game';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const { gameId, playerId } = await req.json();
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   state.winnerId = null;
 
   await saveGame(state);
-  await broadcastState(gameId, sanitizeState(state));
+  await broadcastState(gameId);
 
   return NextResponse.json({ success: true });
 }

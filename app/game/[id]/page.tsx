@@ -122,32 +122,16 @@ export default function GamePage() {
 
     pusher.connection.bind('connected', refreshGameState);
 
-    channel.bind('state-update', (state: ClientGameState) => {
-      const prevPhase = prevPhaseRef.current;
-      prevPhaseRef.current = state.phase;
-
-      setGameState(state);
-
-      if (!state.players[playerId]) {
-        setView('name-entry');
-      } else {
-        setView(state.phase as ViewState);
-      }
-
-      if (state.phase === 'answering') {
-        if (prevPhase !== 'answering') {
-          setAnswerInput('');
-        }
-        setHasSubmitted(state.submittedIds.includes(playerId));
-      }
-    });
+    // The event payload is intentionally empty (see broadcastState) to stay
+    // under Pusher's ~10KB limit — fetch the authoritative state instead.
+    channel.bind('state-update', refreshGameState);
 
     return () => {
       pusher.connection.unbind('connected', refreshGameState);
       channel.unbind_all();
       pusher.unsubscribe(`game-${gameId}`);
     };
-  }, [gameId, playerId]);
+  }, [gameId, playerId, refreshGameState]);
 
   async function handleJoin() {
     if (!nameInput.trim()) {

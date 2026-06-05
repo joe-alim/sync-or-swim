@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGame, saveGame } from '@/lib/redis';
 import { broadcastState } from '@/lib/pusher-server';
-import { sanitizeState } from '@/lib/game';
 import { Player } from '@/lib/types';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -49,7 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   state.players[playerId] = newPlayer;
 
   await saveGame(state);
-  await broadcastState(gameId, sanitizeState(state));
+  await broadcastState(gameId);
 
   return NextResponse.json({ success: true, player: newPlayer });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGame, saveGame } from '@/lib/redis';
 import { broadcastState } from '@/lib/pusher-server';
-import { sanitizeState, calculateRoundScores, WIN_SCORE } from '@/lib/game';
+import { calculateRoundScores, WIN_SCORE } from '@/lib/game';
 import { RoundResult } from '@/lib/types';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -48,13 +48,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Always show round results first, even if someone won
   state.phase = 'revealed';
-  const winner = Object.values(state.players).find((p) => p.score >= WIN_SCORE);
+  // Pick the highest-scoring player among those who crossed the win line —
+  // multiple players can cross WIN_SCORE in the same round, and the winner
+  // must be the actual leader, not whoever joined first.
+  const winner = Object.values(state.players)
+    .filter((p) => p.score >= WIN_SCORE)
+    .reduce<typeof state.players[string] | null>(
+      (best, p) => (best === null || p.score > best.score ? p : best),
+      null
+    );
   if (winner) {
     state.winnerId = winner.id;
   }
 
   await saveGame(state);
-  await broadcastState(gameId, sanitizeState(state));
+  await broadcastState(gameId);
 
   return NextResponse.json({ success: true });
 }
