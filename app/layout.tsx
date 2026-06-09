@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Sync or Swim',
-  description: 'Play Sync or Swim with your remote team',
+  title: 'Foxflame',
+  description: 'A suite of party games for remote teams. Gather round the fire and play.',
 };
 
 export default function RootLayout({
@@ -15,8 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-slate-900 min-h-screen`}>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${inter.className} foxflame-bg min-h-screen`}
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

@@ -1,0 +1,840 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { getPusherClient } from '@/lib/pusher-client';
+import { generateId } from '@/lib/ids';
+import { ClientRoom } from '@/lib/games/types';
+import { ClientSyncOrSwimGame } from '@/lib/games/sync-or-swim/types';
+import { getCrewIdentity, setCrewIdentity } from '@/lib/crew-client';
+import { CrewLeaderboard } from '@/components/CrewLeaderboard';
+
+type RoomState = ClientRoom<ClientSyncOrSwimGame>;
+type ViewState =
+  | 'loading'
+  | 'not-found'
+  | 'name-entry'
+  | 'crew-entry'
+  | 'lobby'
+  | 'answering'
+  | 'revealed'
+  | 'ended';
+
+export default function SyncOrSwimGamePage() {
+  const params = useParams();
+  const router = useRouter();
+
+  // Route is a catch-all so one page serves both URL shapes:
+  //   /sync-or-swim/{gameId}            → anonymous room
+  //   /sync-or-swim/{crewSlug}/{gameId} → crew room (crew code in the path)
+  // The gameId is always the last segment; a leading segment is the crew code.
+  const slugParts = (params.slug as string[]) ?? [];
+  const gameId = slugParts[slugParts.length - 1];
+  const pathTail = slugParts.join('/');
+
+  const [gameState, setGameState] = useState<RoomState | null>(null);
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [view, setView] = useState<ViewState>('loading');
+  const [nameInput, setNameInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [answerInput, setAnswerInput] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isActing, setIsActing] = useState(false);
+  const prevPhaseRef = useRef<string | null>(null);
+
+  const apiPost = useCallback(
+    async (endpoint: string, extraBody: Record<string, unknown> = {}) => {
+      const res = await fetch(`/api/sync-or-swim/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, playerId, ...extraBody }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Request failed');
+      }
+      return res.json();
+    },
+    [gameId, playerId]
+  );
+
+  // Fetch current state from server — called after every API action so the
+  // triggering client never depends solely on receiving its own Pusher event back.
+  const refreshGameState = useCallback(async () => {
+    if (!playerId) return;
+    try {
+      const res = await fetch(`/api/state/${gameId}`);
+      if (!res.ok) return;
+      const state: RoomState = await res.json();
+      const prevPhase = prevPhaseRef.current;
+      prevPhaseRef.current = state.phase;
+      setGameState(state);
+      if (!state.players[playerId]) {
+        setView(state.crewSlug ? 'crew-entry' : 'name-entry');
+      } else {
+        setView(state.phase as ViewState);
+        if (state.phase === 'answering') {
+          if (prevPhase !== 'answering') setAnswerInput('');
+          setHasSubmitted(state.game.submittedIds.includes(playerId));
+        }
+      }
+    } catch {
+      // silently ignore — Pusher may still deliver the update
+    }
+  }, [gameId, playerId]);
+
+  // Add the player to the room with an explicit id+name. Used by the name-entry
+  // and crew-entry forms and by the crew silent-rejoin path (none of which can
+  // rely on the `playerId` state being set yet).
+  const joinRoom = useCallback(
+    async (pid: string, name: string) => {
+      const res = await fetch(`/api/sync-or-swim/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, playerId: pid, name }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Failed to join');
+      }
+      return res.json();
+    },
+    [gameId]
+  );
+
+  // Resolve identity and fetch initial state. State is fetched FIRST because the
+  // room's `crewSlug` decides how identity works: a crew room re-binds this
+  // device to its cached crew memberId (silent rejoin, no PIN), while a plain
+  // room uses a per-room random id as before.
+  useEffect(() => {
+    if (!gameId) return;
+
+    async function init() {
+      let state: RoomState;
+      try {
+        const res = await fetch(`/api/state/${gameId}`);
+        if (res.status === 404) {
+          setView('not-found');
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to fetch state');
+        state = await res.json();
+      } catch {
+        setView('not-found');
+        return;
+      }
+      setGameState(state);
+      prevPhaseRef.current = state.phase;
+
+      // Crew room: prefer this device's cached membership for the crew.
+      if (state.crewSlug) {
+        const identity = getCrewIdentity(state.crewSlug);
+        if (!identity) {
+          // No cached membership — collect name + PIN.
+          setView('crew-entry');
+          return;
+        }
+        const pid = identity.memberId;
+        localStorage.setItem(`player_${gameId}`, pid);
+        setPlayerId(pid);
+
+        if (state.players[pid]) {
+          setView(state.phase as ViewState);
+          if (state.game.submittedIds.includes(pid)) setHasSubmitted(true);
+        } else {
+          // Known crew member, but not yet in THIS room — silently rejoin.
+          try {
+            await joinRoom(pid, identity.name);
+            setView(state.phase as ViewState);
+          } catch {
+            setView('crew-entry');
+          }
+        }
+        return;
+      }
+
+      // Plain anonymous room: per-room random id, unchanged behavior.
+      let pid = localStorage.getItem(`player_${gameId}`);
+      if (!pid) {
+        pid = generateId(6);
+        localStorage.setItem(`player_${gameId}`, pid);
+      }
+      setPlayerId(pid);
+
+      if (!state.players[pid]) {
+        setView('name-entry');
+      } else {
+        setView(state.phase as ViewState);
+        if (state.game.submittedIds.includes(pid)) setHasSubmitted(true);
+      }
+    }
+
+    init();
+  }, [gameId, joinRoom]);
+
+  // Keep the URL canonical once we know the room's crew: a crew room always
+  // shows /sync-or-swim/{crewSlug}/{gameId}. This upgrades links that were
+  // opened with only the room code (e.g. joining by code) without a reload.
+  useEffect(() => {
+    if (!gameState) return;
+    const desiredTail = gameState.crewSlug ? `${gameState.crewSlug}/${gameId}` : gameId;
+    if (pathTail !== desiredTail) {
+      router.replace(`/sync-or-swim/${desiredTail}`);
+    }
+  }, [gameState, gameId, pathTail, router]);
+
+  // Pusher subscription
+  useEffect(() => {
+    if (!gameId || !playerId) return;
+
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`game-${gameId}`);
+
+    pusher.connection.bind('connected', refreshGameState);
+
+    // The event payload is intentionally empty (see broadcastState) to stay
+    // under Pusher's ~10KB limit — fetch the authoritative state instead.
+    channel.bind('state-update', refreshGameState);
+
+    return () => {
+      pusher.connection.unbind('connected', refreshGameState);
+      channel.unbind_all();
+      pusher.unsubscribe(`game-${gameId}`);
+    };
+  }, [gameId, playerId, refreshGameState]);
+
+  async function handleJoin() {
+    if (!nameInput.trim()) {
+      setJoinError('Please enter a name.');
+      return;
+    }
+    setJoinError('');
+    try {
+      await apiPost('join', { name: nameInput.trim() });
+      setView((gameState?.phase as ViewState) ?? 'lobby');
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Failed to join');
+    }
+  }
+
+  // Crew room join: claim a free name (setting its PIN) or verify the PIN to
+  // re-bind to an existing crew identity, then cache it and join this room.
+  async function handleCrewJoin() {
+    const crewSlug = gameState?.crewSlug;
+    if (!crewSlug) return;
+    if (!nameInput.trim()) return setJoinError('Please enter a name.');
+    if (!/^\d{4}$/.test(pinInput)) return setJoinError('PIN must be exactly 4 digits.');
+    setJoinError('');
+    try {
+      const res = await fetch('/api/crew/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: crewSlug, name: nameInput.trim(), pin: pinInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Could not join crew');
+
+      const { memberId, name: confirmedName } = data;
+      setCrewIdentity(crewSlug, { memberId, name: confirmedName });
+      localStorage.setItem(`player_${gameId}`, memberId);
+      setPlayerId(memberId);
+
+      await joinRoom(memberId, confirmedName);
+      setView((gameState?.phase as ViewState) ?? 'lobby');
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Failed to join');
+    }
+  }
+
+  async function handleStart() {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await apiPost('start');
+    } catch (err) {
+      console.error('Start failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!answerInput.trim() || hasSubmitted) return;
+    setSubmitting(true);
+    try {
+      await apiPost('submit', { answer: answerInput.trim() });
+      setHasSubmitted(true);
+      await refreshGameState();
+    } catch (err) {
+      console.error('Submit failed:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleReveal() {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await apiPost('reveal');
+      await refreshGameState();
+    } catch (err) {
+      console.error('Reveal failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleNext() {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await apiPost('next');
+      await refreshGameState();
+    } catch (err) {
+      console.error('Next failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleSkip() {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await apiPost('skip');
+      await refreshGameState();
+    } catch (err) {
+      console.error('Skip failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleReset() {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await apiPost('reset');
+      await refreshGameState();
+    } catch (err) {
+      console.error('Reset failed:', err);
+      await refreshGameState();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const isHost = playerId === gameState?.hostId;
+  const players = gameState ? Object.values(gameState.players) : [];
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
+  // ─── Loading ───────────────────────────────────────────────────────────────
+  if (view === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-stone-400">Loading game...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Not Found ─────────────────────────────────────────────────────────────
+  if (view === 'not-found') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-white mb-3">Game not found</h1>
+          <p className="text-stone-400 mb-6">This game doesn&apos;t exist or has expired.</p>
+          <a
+            href="/"
+            className="bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold px-6 py-3 rounded-xl transition-colors"
+          >
+            Back to Foxflame
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Name Entry ────────────────────────────────────────────────────────────
+  if (view === 'name-entry') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-stone-800 rounded-2xl p-8">
+          <p className="text-stone-400 text-sm text-center mb-1 font-mono tracking-widest uppercase">
+            Game Code
+          </p>
+          <p className="text-amber-400 font-mono text-3xl font-bold text-center mb-6 tracking-widest">
+            {gameId}
+          </p>
+          <h2 className="text-2xl font-bold text-white text-center mb-6">Join Game</h2>
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => {
+              setNameInput(e.target.value.slice(0, 20));
+              setJoinError('');
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+            placeholder="Your name"
+            autoFocus
+            className="w-full bg-stone-700 text-white placeholder-stone-500 text-lg px-4 py-3 rounded-xl border border-stone-600 focus:outline-none focus:border-amber-400 mb-4"
+          />
+          {joinError && (
+            <p className="text-red-400 text-sm mb-3">{joinError}</p>
+          )}
+          <button
+            onClick={handleJoin}
+            className="w-full bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-lg py-3 rounded-xl transition-colors"
+          >
+            Join
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Crew Entry ──────────────────────────────────────────────────────────────
+  if (view === 'crew-entry' && gameState?.crewSlug) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-stone-800 rounded-2xl p-8">
+          <p className="text-stone-400 text-sm text-center mb-1 font-mono tracking-widest uppercase">
+            Crew Game
+          </p>
+          <p className="text-amber-400 font-mono text-2xl font-bold text-center mb-2 tracking-widest">
+            {gameState.crewSlug}
+          </p>
+          <p className="text-stone-400 text-sm text-center mb-6">
+            Wins in this game count toward your crew record. New name? Pick a PIN.
+            Returning? Enter your PIN to claim your name.
+          </p>
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => {
+              setNameInput(e.target.value.slice(0, 24));
+              setJoinError('');
+            }}
+            placeholder="Your name"
+            autoFocus
+            className="w-full bg-stone-700 text-white placeholder-stone-500 text-lg px-4 py-3 rounded-xl border border-stone-600 focus:outline-none focus:border-amber-400 mb-3"
+          />
+          <input
+            type="text"
+            value={pinInput}
+            onChange={(e) => {
+              setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+              setJoinError('');
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleCrewJoin()}
+            placeholder="4-digit PIN"
+            inputMode="numeric"
+            maxLength={4}
+            className="w-full bg-stone-700 text-white placeholder-stone-500 text-lg px-4 py-3 rounded-xl border border-stone-600 focus:outline-none focus:border-amber-400 font-mono tracking-[0.5em] text-center mb-4"
+          />
+          {joinError && <p className="text-red-400 text-sm mb-3">{joinError}</p>}
+          <button
+            onClick={handleCrewJoin}
+            className="w-full bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-lg py-3 rounded-xl transition-colors"
+          >
+            Join crew game
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Lobby ─────────────────────────────────────────────────────────────────
+  if (view === 'lobby' && gameState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-lg">
+          <h1 className="text-4xl font-extrabold text-white text-center mb-2">Sync or Swim</h1>
+          <p className="text-stone-400 text-center mb-8">Waiting for players...</p>
+
+          {/* Game Code */}
+          <div className="bg-stone-800 rounded-2xl p-6 mb-6 text-center">
+            <p className="text-stone-400 text-sm mb-2">Share this code to invite players</p>
+            <p className="text-amber-400 font-mono text-5xl font-bold tracking-widest mb-4">
+              {gameId}
+            </p>
+            <button
+              onClick={copyLink}
+              className="bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              {copied ? '✓ Copied!' : 'Copy invite link'}
+            </button>
+          </div>
+
+          {/* Player List */}
+          <div className="bg-stone-800 rounded-2xl p-6 mb-6">
+            <h2 className="text-white font-semibold mb-4">
+              Players ({players.length})
+            </h2>
+            <ul className="space-y-2">
+              {players.map((p) => (
+                <li key={p.id} className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-400 rounded-full" />
+                  <span className="text-white">{p.name}</span>
+                  {p.id === playerId && (
+                    <span className="text-stone-400 text-sm">(you)</span>
+                  )}
+                  {p.isHost && (
+                    <span className="text-amber-400 text-xs font-semibold ml-1">(host)</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Crew standings (crew rooms only) */}
+          {gameState.crewSlug && (
+            <div className="mb-6">
+              <CrewLeaderboard slug={gameState.crewSlug} highlightMemberId={playerId} />
+            </div>
+          )}
+
+          {/* Start / Waiting */}
+          {isHost ? (
+            <button
+              onClick={handleStart}
+              disabled={players.length < 2 || isActing}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-lg py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {players.length < 2 ? 'Waiting for more players...' : 'Start Game'}
+            </button>
+          ) : (
+            <p className="text-center text-stone-400">Waiting for host to start...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Answering ─────────────────────────────────────────────────────────────
+  if (view === 'answering' && gameState) {
+    const roundNum = gameState.game.roundHistory.length + 1;
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-lg">
+          {/* Round info */}
+          <div className="flex justify-between items-center mb-6">
+            <span className="text-stone-400 text-sm">Round {roundNum}</span>
+            <span className="text-stone-500 text-sm">{gameState.game.cardsRemaining} cards left</span>
+          </div>
+
+          {/* Cue Card */}
+          <div className="bg-stone-800 rounded-2xl p-10 mb-8 text-center shadow-2xl border border-stone-700">
+            <p className="text-stone-400 text-xs uppercase tracking-widest mb-4">Fill in the blank</p>
+            <p className="text-white text-4xl font-extrabold tracking-wider">
+              {gameState.game.currentCard}
+            </p>
+          </div>
+
+          {/* Answer Input */}
+          <div className="mb-6">
+            <input
+              type="text"
+              value={answerInput}
+              onChange={(e) => setAnswerInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !hasSubmitted && handleSubmit()}
+              placeholder="Your answer..."
+              disabled={hasSubmitted}
+              autoFocus
+              className="w-full bg-stone-800 text-white placeholder-stone-500 text-xl px-5 py-4 rounded-xl border border-stone-700 focus:outline-none focus:border-amber-400 disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            />
+            {!hasSubmitted ? (
+              <button
+                onClick={handleSubmit}
+                disabled={!answerInput.trim() || submitting}
+                className="w-full bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-lg py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Submitting...' : 'Submit Answer'}
+              </button>
+            ) : (
+              <div className="w-full bg-green-900/50 border border-green-600 text-green-300 text-center py-3 rounded-xl">
+                Answer locked in! Waiting for others...
+              </div>
+            )}
+          </div>
+
+          {/* Player submission status */}
+          <div className="bg-stone-800 rounded-xl p-4 mb-6">
+            <p className="text-stone-400 text-xs uppercase tracking-widest mb-3">Waiting on</p>
+            <div className="flex flex-wrap gap-2">
+              {players.map((p) => {
+                const submitted = gameState.game.submittedIds.includes(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm ${
+                      submitted
+                        ? 'bg-green-900/40 text-green-300'
+                        : 'bg-stone-700 text-stone-400'
+                    }`}
+                  >
+                    <span>{submitted ? '✓' : '⏳'}</span>
+                    <span>{p.name}</span>
+                    {p.id === playerId && <span className="text-xs opacity-60">(you)</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Host controls */}
+          {isHost && (
+            <div className="flex gap-3">
+              <button
+                onClick={handleSkip}
+                disabled={isActing}
+                className="flex-1 bg-stone-700 hover:bg-stone-600 text-stone-300 font-medium py-2.5 rounded-lg transition-colors text-sm border border-stone-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Skip Card
+              </button>
+              <button
+                onClick={handleReveal}
+                disabled={isActing}
+                className="flex-1 bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold py-2.5 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isActing ? 'Revealing...' : 'Reveal Answers'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Revealed ──────────────────────────────────────────────────────────────
+  if (view === 'revealed' && gameState) {
+    const lastRound = gameState.game.roundHistory[gameState.game.roundHistory.length - 1];
+    const roundNum = gameState.game.roundHistory.length;
+
+    // Group answers by normalized text
+    type AnswerGroup = {
+      answer: string;
+      players: { name: string; id: string; points: number }[];
+      points: number;
+    };
+    const groups: Record<string, AnswerGroup> = {};
+    if (lastRound) {
+      for (const entry of lastRound.answers) {
+        const key = entry.answer.toLowerCase().trim();
+        if (!groups[key]) {
+          groups[key] = { answer: entry.answer, players: [], points: entry.points };
+        }
+        groups[key].players.push({ name: entry.playerName, id: entry.playerId, points: entry.points });
+      }
+    }
+    const sortedGroups = Object.values(groups).sort((a, b) => b.points - a.points);
+
+    // Calculate this-round points per player
+    const roundPoints: Record<string, number> = {};
+    if (lastRound) {
+      for (const entry of lastRound.answers) {
+        roundPoints[entry.playerId] = entry.points;
+      }
+    }
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-lg">
+          <h2 className="text-3xl font-extrabold text-white text-center mb-2">
+            Round {roundNum} Results
+          </h2>
+
+          {/* Cue card shown small */}
+          {lastRound && (
+            <div className="bg-stone-800 rounded-xl px-6 py-3 text-center mb-6 inline-block w-full">
+              <span className="text-amber-400 font-mono font-bold text-xl tracking-widest">
+                {lastRound.card}
+              </span>
+            </div>
+          )}
+
+          {/* Answer groups */}
+          <div className="space-y-3 mb-8">
+            {sortedGroups.map((group) => {
+              const nameList = group.players.map((p) => p.name).join(' + ');
+              const isThreePoint = group.points === 3;
+              const isOnePoint = group.points === 1;
+
+              let containerClass = 'bg-stone-700/50 border border-stone-600';
+              if (isThreePoint) containerClass = 'bg-green-900/50 border border-green-500';
+              if (isOnePoint) containerClass = 'bg-blue-900/50 border border-blue-500';
+
+              return (
+                <div key={group.answer} className={`rounded-xl px-5 py-4 ${containerClass}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-white font-semibold text-lg">&ldquo;{group.answer}&rdquo;</p>
+                      <p className="text-sm mt-0.5">
+                        {isThreePoint && (
+                          <span className="text-green-300">
+                            🎯 {nameList}
+                          </span>
+                        )}
+                        {isOnePoint && (
+                          <span className="text-blue-300">
+                            {nameList}
+                          </span>
+                        )}
+                        {!isThreePoint && !isOnePoint && (
+                          <span className="text-stone-400">{nameList}</span>
+                        )}
+                      </p>
+                    </div>
+                    <span
+                      className={`font-bold text-lg shrink-0 ${
+                        isThreePoint
+                          ? 'text-green-300'
+                          : isOnePoint
+                          ? 'text-blue-300'
+                          : 'text-stone-500'
+                      }`}
+                    >
+                      {group.points} pts
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Scoreboard */}
+          <div className="bg-stone-800 rounded-2xl p-5 mb-6">
+            <h3 className="text-stone-400 text-sm uppercase tracking-widest mb-3">Scoreboard</h3>
+            <ul className="space-y-2">
+              {sortedPlayers.map((p, i) => {
+                const earned = roundPoints[p.id] ?? 0;
+                return (
+                  <li key={p.id} className="flex items-center gap-3">
+                    <span className="text-stone-500 text-sm w-5">{i + 1}.</span>
+                    <span className="text-white flex-1">
+                      {p.name}
+                      {p.id === playerId && (
+                        <span className="text-stone-400 text-sm ml-1">(you)</span>
+                      )}
+                    </span>
+                    {earned > 0 && (
+                      <span className="text-green-400 text-sm font-medium">+{earned}</span>
+                    )}
+                    <span className="text-white font-bold">{p.score}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Host: Next Card or End Game */}
+          {isHost && (
+            <button
+              onClick={handleNext}
+              disabled={isActing}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-lg py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {gameState.game.winnerId ? 'See Final Results →' : 'Next Card →'}
+            </button>
+          )}
+          {!isHost && (
+            <p className="text-center text-stone-400 text-sm">Waiting for host to continue...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Ended ─────────────────────────────────────────────────────────────────
+  if (view === 'ended' && gameState) {
+    const winner = gameState.game.winnerId ? gameState.players[gameState.game.winnerId] : null;
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-lg text-center">
+          {/* Winner announcement */}
+          <div className="mb-8">
+            <div className="text-6xl mb-4">🏆</div>
+            <h1 className="text-4xl font-extrabold text-white mb-2">
+              {winner?.name ?? 'Someone'} wins!
+            </h1>
+            <p className="text-stone-400">
+              Final score: {winner?.score} points
+            </p>
+          </div>
+
+          {/* Final Scoreboard */}
+          <div className="bg-stone-800 rounded-2xl p-6 mb-8 text-left">
+            <h2 className="text-stone-400 text-sm uppercase tracking-widest mb-4 text-center">
+              Final Scores
+            </h2>
+            <ul className="space-y-3">
+              {sortedPlayers.map((p, i) => (
+                <li key={p.id} className="flex items-center gap-3">
+                  <span className="text-2xl w-8">
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                  </span>
+                  <span className="text-white text-lg flex-1">
+                    {p.name}
+                    {p.id === playerId && (
+                      <span className="text-stone-400 text-sm ml-1">(you)</span>
+                    )}
+                  </span>
+                  <span className="text-white font-bold text-xl">{p.score}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Crew standings — fetched fresh so the just-recorded win shows */}
+          {gameState.crewSlug && (
+            <div className="mb-8 text-left">
+              <CrewLeaderboard slug={gameState.crewSlug} highlightMemberId={playerId} refreshKey={1} />
+            </div>
+          )}
+
+          {/* Actions */}
+          {isHost ? (
+            <button
+              onClick={handleReset}
+              disabled={isActing}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-lg py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            >
+              Play Again
+            </button>
+          ) : (
+            <p className="text-stone-400 mb-4">Waiting for host to start a new game...</p>
+          )}
+          <button
+            onClick={() => router.push('/')}
+            className="w-full bg-stone-700 hover:bg-stone-600 text-white font-medium py-3 rounded-xl transition-colors"
+          >
+            Back to Foxflame
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback
+  return null;
+}

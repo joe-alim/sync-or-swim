@@ -28,3 +28,23 @@ export async function broadcastState(gameId: string): Promise<void> {
     console.error(`Pusher broadcast failed for game ${gameId}:`, err);
   }
 }
+
+/**
+ * Tell everyone currently in a crew's lobby that the host just launched a game,
+ * so their clients can follow the host into the room automatically (no room
+ * code to type). Broadcast on the same presence channel the lobby subscribes to.
+ *
+ * Wrapped in try/catch so a transient Pusher failure never turns an otherwise
+ * successful room creation into a 500 — members can still join via the link.
+ */
+export async function broadcastCrewGameStarted(
+  crewSlug: string,
+  gameSlug: string,
+  gameId: string
+): Promise<void> {
+  try {
+    await pusherServer.trigger(`presence-crew-${crewSlug}`, 'game-started', { gameSlug, gameId });
+  } catch (err) {
+    console.error(`Pusher crew broadcast failed for crew ${crewSlug}:`, err);
+  }
+}

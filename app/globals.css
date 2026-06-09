@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Campfire-night backdrop: a warm, dark base with a soft firelight glow rising
+   from the bottom of the screen. */
+.foxflame-bg {
+  background-color: #17120e;
+  background-image:
+    radial-gradient(900px 520px at 50% 118%, rgba(249, 115, 22, 0.22), transparent 70%),
+    radial-gradient(700px 420px at 50% 130%, rgba(251, 191, 36, 0.14), transparent 65%);
+  background-attachment: fixed;
+}
