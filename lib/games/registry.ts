@@ -7,8 +7,13 @@
 import { GameMeta } from './types';
 import { syncOrSwimMeta } from './sync-or-swim/meta';
 import { twoTracksAndATrickMeta } from './two-tracks-and-a-trick/meta';
+import { campfireConfessionsMeta } from './campfire-confessions/meta';
 
-export const GAMES: GameMeta[] = [syncOrSwimMeta, twoTracksAndATrickMeta];
+export const GAMES: GameMeta[] = [
+  syncOrSwimMeta,
+  twoTracksAndATrickMeta,
+  campfireConfessionsMeta,
+];
 
 export function getGameMeta(slug: string): GameMeta | null {
   return GAMES.find((g) => g.slug === slug) ?? null;

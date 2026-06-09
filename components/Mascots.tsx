@@ -5,6 +5,7 @@ import { GameMeta } from '@/lib/games/types';
 
 export function Mascot({ kind, className = '' }: { kind: GameMeta['mascot']; className?: string }) {
   if (kind === 'fox') return <FoxMascot className={className} />;
+  if (kind === 'owl') return <OwlMascot className={className} />;
   return <FishMascot className={className} />;
 }
 
@@ -58,6 +59,49 @@ export function FoxMascot({ className = '' }: { className?: string }) {
         </g>
         {/* Nose */}
         <path d="M 40 52 l -5 -5 h 10 Z" fill="#1c1917" />
+      </g>
+    </svg>
+  );
+}
+
+// The Campfire Confessions mascot: a wide-eyed night owl. Front-facing so it
+// reads at any size, which is why the same silhouette is reused as the site's
+// alternate logo mark (see /public/owl-mark.svg). Slow head-bob + occasional
+// blink in the same inline-animation style as the fox and fish.
+export function OwlMascot({ className = '' }: { className?: string }) {
+  return (
+    <svg width="80" height="74" viewBox="0 0 80 74" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <style>{`
+        @keyframes owlBob  { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-2.5px) rotate(2deg); } }
+        @keyframes owlBlink { 0%,91%,100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+        .ow-body { animation: owlBob 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 95%; }
+        .ow-eye  { animation: owlBlink 4.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+      `}</style>
+      <g className="ow-body">
+        {/* Ear tufts */}
+        <polygon points="21,16 15,1 33,13" fill="#b45309" />
+        <polygon points="59,16 65,1 47,13" fill="#b45309" />
+        {/* Body */}
+        <ellipse cx="40" cy="42" rx="27" ry="28" fill="#c2710c" />
+        {/* Wings */}
+        <path d="M 15 36 Q 9 50 18 64 Q 24 60 24 44 Z" fill="#92400e" />
+        <path d="M 65 36 Q 71 50 62 64 Q 56 60 56 44 Z" fill="#92400e" />
+        {/* Belly */}
+        <ellipse cx="40" cy="48" rx="16" ry="20" fill="#f0c987" />
+        {/* Eye discs */}
+        <circle cx="30" cy="32" r="12" fill="#fff7ed" />
+        <circle cx="50" cy="32" r="12" fill="#fff7ed" />
+        {/* Eyes */}
+        <g className="ow-eye">
+          <circle cx="30" cy="33" r="5.5" fill="#1c1917" />
+          <circle cx="50" cy="33" r="5.5" fill="#1c1917" />
+          <circle cx="32" cy="31" r="1.7" fill="#fff" />
+          <circle cx="52" cy="31" r="1.7" fill="#fff" />
+        </g>
+        {/* Beak */}
+        <polygon points="36,38 44,38 40,47" fill="#f59e0b" />
+        {/* Feet */}
+        <path d="M 33 68 l 0 5 M 47 68 l 0 5" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" />
       </g>
     </svg>
   );

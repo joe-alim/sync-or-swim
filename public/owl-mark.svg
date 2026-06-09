@@ -1,0 +1,27 @@
+<!-- Owl logo mark — the static, front-facing emblem variant of the OwlMascot
+     (components/Mascots.tsx). Mirrors the proportions of the fox app/icon.svg so
+     it can be repurposed: alternate favicon, banner/OG accent, or print mark. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Ear tufts -->
+  <path d="M16 13 L12 1 L27 11 Z" fill="#b45309"/>
+  <path d="M48 13 L52 1 L37 11 Z" fill="#b45309"/>
+  <!-- Body -->
+  <ellipse cx="32" cy="34" rx="22" ry="23" fill="#c2710c"/>
+  <!-- Wings -->
+  <path d="M12 28 C7 40 14 53 19 56 C23 52 23 38 23 36 Z" fill="#92400e"/>
+  <path d="M52 28 C57 40 50 53 45 56 C41 52 41 38 41 36 Z" fill="#92400e"/>
+  <!-- Belly -->
+  <ellipse cx="32" cy="39" rx="13" ry="16" fill="#f0c987"/>
+  <!-- Eye discs -->
+  <circle cx="24" cy="26" r="10" fill="#fdfdf8"/>
+  <circle cx="40" cy="26" r="10" fill="#fdfdf8"/>
+  <!-- Eyes -->
+  <circle cx="24" cy="27" r="4.6" fill="#2b2b33"/>
+  <circle cx="40" cy="27" r="4.6" fill="#2b2b33"/>
+  <circle cx="25.6" cy="25.4" r="1.4" fill="#fff"/>
+  <circle cx="41.6" cy="25.4" r="1.4" fill="#fff"/>
+  <!-- Beak -->
+  <path d="M28.5 31 L35.5 31 L32 39 Z" fill="#f59e0b"/>
+  <!-- Feet -->
+  <path d="M27 55 L27 60 M37 55 L37 60" stroke="#f59e0b" stroke-width="2.4" stroke-linecap="round"/>
+</svg>
