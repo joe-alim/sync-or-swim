@@ -8,6 +8,7 @@ export function Mascot({ kind, className = '' }: { kind: GameMeta['mascot']; cla
   if (kind === 'owl') return <OwlMascot className={className} />;
   if (kind === 'bear') return <BearMascot className={className} />;
   if (kind === 'doe') return <DoeMascot className={className} />;
+  if (kind === 'skunk') return <SkunkMascot className={className} />;
   return <FishMascot className={className} />;
 }
 
@@ -33,6 +34,80 @@ export function DoeMascot({ className = '' }: { className?: string }) {
         }}
       />
     </div>
+  );
+}
+
+// The Smoke Signals mascot: the hooded Assassin's animal — a skunk (the deck's
+// value-0 card; see lib/games/smoke-signals/cards.ts). A 3/4-turned head in flat
+// SVG matching the others, but in the game's cooler slate palette rather than the
+// warm browns/oranges: pure-black fur vanishes on the dark hub, so the fur is a
+// lighter slate with a soft light rim (the skRim filter) to keep the silhouette
+// readable. Simple round eyes like the fox/owl, the signature white blaze (kept
+// clear of the nose), and blurred, curling smoke wisps rising behind the head —
+// the "smoke signals." Slow bob + blink + smoke-drift in the shared style.
+export function SkunkMascot({ className = '' }: { className?: string }) {
+  return (
+    <svg width="72" height="80" viewBox="17 4 50 56" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <defs>
+        <filter id="skRim" x="-25%" y="-25%" width="150%" height="150%">
+          <feDropShadow dx="0" dy="0" stdDeviation="1.1" floodColor="#aeb6c4" floodOpacity="0.55" />
+        </filter>
+        <filter id="skSmokeBlur" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="0.9" />
+        </filter>
+      </defs>
+      <style>{`
+        @keyframes skBob   { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-2.5px) rotate(1.5deg); } }
+        @keyframes skBlink { 0%,93%,100% { transform: scaleY(1); } 96.5% { transform: scaleY(0.12); } }
+        @keyframes skSmoke { 0%,100% { transform: translateY(3px); opacity: 0.10; } 50% { transform: translateY(-7px); opacity: 0.38; } }
+        .sk-fig { animation: skBob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 88%; }
+        .sk-eye { animation: skBlink 4.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+        .sk-s1  { animation: skSmoke 5.6s ease-in-out infinite;      transform-box: fill-box; transform-origin: 50% 100%; }
+        .sk-s2  { animation: skSmoke 6.6s ease-in-out 1.3s infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+        .sk-s3  { animation: skSmoke 6.0s ease-in-out 2.6s infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+      `}</style>
+
+      {/* Puffy, curling smoke wisps rising behind the head */}
+      <g filter="url(#skSmokeBlur)" fill="#cbd5e1" stroke="#cbd5e1" strokeLinecap="round" strokeLinejoin="round">
+        <g className="sk-s2">
+          <path fill="none" strokeWidth="3.2" d="M 23 56 C 18 49 27 44 22 36 C 18 30 25 26 21 20 C 19.5 16.5 23.5 13.5 25.5 16.5 C 27 18.8 23.8 20.5 22.6 18" />
+          <circle cx="22.5" cy="48" r="3.1" /><circle cx="23" cy="34" r="2.5" />
+        </g>
+        <g className="sk-s1">
+          <path fill="none" strokeWidth="3.6" d="M 42 58 C 36 50 47 45 41 36 C 36 29 46 24 41 15 C 38.5 10.5 43 6 45.5 9.5 C 47.5 12.4 43.6 14.4 42 11.6" />
+          <circle cx="42" cy="42" r="3.4" /><circle cx="42" cy="27" r="2.7" />
+        </g>
+        <g className="sk-s3">
+          <path fill="none" strokeWidth="3.2" d="M 61 56 C 66 49 57 44 62 36 C 66 30 59 26 63 20 C 64.5 16.5 60.5 13.5 58.5 16.5 C 57 18.8 60.2 20.5 61.4 18" />
+          <circle cx="61.5" cy="48" r="3.1" /><circle cx="61" cy="34" r="2.5" />
+        </g>
+      </g>
+
+      <g className="sk-fig" filter="url(#skRim)">
+        {/* Rounded ears (near ear larger; far ear smaller for the 3/4 turn) */}
+        <path d="M 29 26 C 26 15 31 9 37 11 C 42 12.5 43 17 42.5 23 C 38 21 33 21.5 29 26 Z" fill="#3a414f" />
+        <path d="M 49 23 C 48 14 53 10 58 12 C 63 14 63 20 60 25 C 56 21 52 21 49 23 Z" fill="#343b48" />
+        <path d="M 32 22.5 C 30 16.5 34 13.5 38 15.5 C 40 16.8 40.3 19.5 39.5 22 C 37 20.5 34 20.5 32 22.5 Z" fill="#525d6f" />
+        <path d="M 53 21 C 52 16 55 14 58 16 C 60 17 60 20 59 22 C 57 20.5 55 20.5 53 21 Z" fill="#3f4858" />
+
+        {/* Rounder head with a short muzzle, turned 3/4 to the left */}
+        <path d="M 46 18 C 34 18 27 26 26.5 37 C 26.3 41 24.5 44 23 47 C 25.5 49.5 29 49 31.5 47 C 34.8 53.5 40.5 57 46.5 57 C 57 57 64 48 64 37.5 C 64 26.5 57 18.5 46 18 Z" fill="#3a414f" />
+
+        {/* White blaze sweeping forehead -> bridge, stopping short of the nose */}
+        <path d="M 44.5 20 C 47 20 45.8 25 43.8 30 C 41.3 36 38 40.5 34.5 43 C 33.3 43.8 32 44 31.4 43.4 C 32.2 42.2 34 40.3 36 36.8 C 38.8 32 40.7 26.5 41.6 23 C 42.1 21 42.8 20 44.5 20 Z" fill="#f1f1ec" />
+
+        {/* Simple round eyes (fox/owl style) */}
+        <g className="sk-eye">
+          <circle cx="36" cy="34" r="3.4" fill="#15181f" />
+          <circle cx="51" cy="32.5" r="3" fill="#15181f" />
+          <circle cx="34.9" cy="32.8" r="1.05" fill="#fff" />
+          <circle cx="50" cy="31.4" r="0.95" fill="#fff" />
+        </g>
+
+        {/* Nose at the muzzle tip */}
+        <ellipse cx="24.8" cy="47.3" rx="2.6" ry="2.1" fill="#15181f" />
+      </g>
+    </svg>
   );
 }
 

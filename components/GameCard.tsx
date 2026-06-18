@@ -5,7 +5,16 @@ import { ComingSoonBadge } from './ComingSoonBadge';
 // A single game tile on the Foxflame hub. Live games render their action
 // controls (passed as children); coming-soon games are dimmed, non-interactive,
 // and wear the Coming Soon ribbon.
-export function GameCard({ meta, children }: { meta: GameMeta; children?: React.ReactNode }) {
+export function GameCard({
+  meta,
+  headerActions,
+  children,
+}: {
+  meta: GameMeta;
+  /** Small controls pinned to the card's top-right (e.g. preview buttons). */
+  headerActions?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
   const comingSoon = meta.status === 'coming-soon';
 
   return (
@@ -21,12 +30,21 @@ export function GameCard({ meta, children }: { meta: GameMeta; children?: React.
     >
       {comingSoon && <ComingSoonBadge />}
 
-      <div className="flex items-center gap-4 mb-3">
+      {headerActions && (
+        <div className="absolute right-4 top-4 z-10 flex gap-1.5">{headerActions}</div>
+      )}
+
+      <div className={`flex items-center gap-4 mb-3 ${headerActions || comingSoon ? 'pr-20' : ''}`}>
         <div className="shrink-0 rounded-2xl bg-stone-800/80 p-2.5 ring-1 ring-stone-700">
           <Mascot kind={meta.mascot} />
         </div>
         <div>
           <h2 className={`text-2xl font-extrabold text-stone-50 leading-tight ${meta.titleClassName ?? ''}`}>{meta.title}</h2>
+          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-stone-700 bg-stone-800/80 px-2.5 py-0.5 text-xs font-medium text-stone-300">
+            👥 {meta.players.min === meta.players.max
+              ? `${meta.players.min} players`
+              : `${meta.players.min}–${meta.players.max} players`}
+          </span>
         </div>
       </div>
 

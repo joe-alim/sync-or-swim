@@ -6,6 +6,7 @@ export const twoTracksAndATrickMeta: GameMeta = {
   description: 'Tell two true stories and one convincing fib. Can your team spot the trick?',
   status: 'live',
   mascot: 'fox',
+  players: { min: 3, max: 12 },
   accent: {
     glow: 'hover:border-orange-400/70 hover:shadow-orange-500/20',
     button: 'bg-orange-400 hover:bg-orange-300 text-stone-900',

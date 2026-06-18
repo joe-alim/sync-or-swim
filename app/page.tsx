@@ -6,6 +6,7 @@ import { GAMES } from '@/lib/games/registry';
 import { GameCard } from '@/components/GameCard';
 import { Campfire } from '@/components/Campfire';
 import { CrewSetupModal } from '@/components/CrewSetupModal';
+import { GAME_PREVIEWS } from '@/components/gamePreviews';
 
 export default function HomePage() {
   const router = useRouter();
@@ -16,6 +17,8 @@ export default function HomePage() {
   const [crewModalOpen, setCrewModalOpen] = useState(false);
   // Standalone "jump straight to a crew lobby by code" box.
   const [lobbyCode, setLobbyCode] = useState('');
+  // Which game's preview modal is open, and whether it's the rules or the cards.
+  const [preview, setPreview] = useState<{ slug: string; kind: 'rules' | 'cards' } | null>(null);
 
   function goToLobby() {
     const trimmed = lobbyCode.trim().toUpperCase();
@@ -74,7 +77,7 @@ export default function HomePage() {
 
       {/* Crew CTA — one entry point across every game. Create/continue a crew to
           keep score over time, or jump straight to an existing crew's lobby. */}
-      <div className="w-full max-w-3xl mb-10 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="w-full max-w-4xl mb-10 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
         <button
           onClick={() => setCrewModalOpen(true)}
           className="bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap"
@@ -108,9 +111,40 @@ export default function HomePage() {
       </div>
 
       {/* Game grid */}
-      <div className="grid w-full max-w-3xl gap-6 sm:grid-cols-2">
-        {GAMES.map((meta) => (
-          <GameCard key={meta.slug} meta={meta}>
+      <div className="grid w-full max-w-4xl gap-6 sm:grid-cols-2">
+        {GAMES.map((meta) => {
+          const previewSet = GAME_PREVIEWS[meta.slug];
+          // Preview buttons only make sense for playable games with content.
+          const showPreview = meta.status === 'live' && !!previewSet;
+          return (
+          <GameCard
+            key={meta.slug}
+            meta={meta}
+            headerActions={
+              showPreview && (
+                <>
+                  <button
+                    onClick={() => setPreview({ slug: meta.slug, kind: 'rules' })}
+                    aria-label={`Preview rules for ${meta.title}`}
+                    title="How to play"
+                    className="rounded-lg border border-stone-700 bg-stone-800/80 px-2 py-1 text-sm text-stone-200 transition-colors hover:bg-stone-700"
+                  >
+                    📜
+                  </button>
+                  {previewSet.cards && (
+                    <button
+                      onClick={() => setPreview({ slug: meta.slug, kind: 'cards' })}
+                      aria-label={`Preview cards for ${meta.title}`}
+                      title="View cards"
+                      className="rounded-lg border border-stone-700 bg-stone-800/80 px-2 py-1 text-sm text-stone-200 transition-colors hover:bg-stone-700"
+                    >
+                      📖
+                    </button>
+                  )}
+                </>
+              )
+            }
+          >
             {/* Action controls only render for live games */}
             <div className="space-y-4">
               <button
@@ -149,12 +183,21 @@ export default function HomePage() {
               </div>
             </div>
           </GameCard>
-        ))}
+          );
+        })}
       </div>
 
       {error && <p className="mt-6 text-red-400 text-sm">{error}</p>}
 
       {crewModalOpen && <CrewSetupModal onClose={() => setCrewModalOpen(false)} />}
+
+      {preview &&
+        (() => {
+          const set = GAME_PREVIEWS[preview.slug];
+          const onClose = () => setPreview(null);
+          if (preview.kind === 'cards' && set?.cards) return set.cards({ onClose });
+          return set?.rules({ onClose });
+        })()}
     </main>
   );
 }
