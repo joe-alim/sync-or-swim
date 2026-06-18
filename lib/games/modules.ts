@@ -3,14 +3,17 @@
 // `room.gameType`. Only *playable* games appear here; coming-soon games live
 // in the meta registry (./registry.ts) but have no module.
 
-import { Room, ClientRoom } from './types';
+import { Room, ClientRoom, ViewerCredential } from './types';
 import * as syncOrSwim from './sync-or-swim/logic';
 import * as twoTracks from './two-tracks-and-a-trick/logic';
+import * as smokeSignals from './smoke-signals/logic';
 
 export interface GameModule {
   slug: string;
   createRoom(id: string, hostId: string): Room<unknown>;
-  sanitize(room: Room<unknown>): ClientRoom<unknown>;
+  // `viewer` is optional so hidden-information games (e.g. Smoke Signals) can
+  // return a per-player view; games without secrets simply ignore it.
+  sanitize(room: Room<unknown>, viewer?: ViewerCredential): ClientRoom<unknown>;
 }
 
 const MODULES: Record<string, GameModule> = {
@@ -26,6 +29,11 @@ const MODULES: Record<string, GameModule> = {
     slug: twoTracks.SLUG,
     createRoom: twoTracks.createRoom,
     sanitize: twoTracks.sanitize as unknown as GameModule['sanitize'],
+  },
+  [smokeSignals.SLUG]: {
+    slug: smokeSignals.SLUG,
+    createRoom: smokeSignals.createRoom,
+    sanitize: smokeSignals.sanitize as unknown as GameModule['sanitize'],
   },
 };
 

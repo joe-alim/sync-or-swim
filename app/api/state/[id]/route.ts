@@ -5,7 +5,7 @@ import { getModule } from '@/lib/games/modules';
 // Generic, game-agnostic state read. Dispatches sanitization to the game module
 // named by the room's `gameType`, so every game shares this one endpoint.
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
@@ -20,5 +20,13 @@ export async function GET(
     return NextResponse.json({ error: 'Unknown game type' }, { status: 500 });
   }
 
-  return NextResponse.json(gameModule.sanitize(room));
+  // Hidden-information games read the caller's identity from headers to return a
+  // per-player view. Sent via headers (not the URL) so secrets don't land in logs.
+  // Games without secrets ignore this.
+  const playerId = req.headers.get('x-player-id');
+  const viewer = playerId
+    ? { playerId, secret: req.headers.get('x-player-secret') ?? undefined }
+    : undefined;
+
+  return NextResponse.json(gameModule.sanitize(room, viewer));
 }

@@ -48,6 +48,17 @@ export interface ClientRoom<TClientGame> {
   crewSlug?: string;
 }
 
+/**
+ * Identifies the player making a state read, so a game's `sanitize` can return a
+ * per-viewer view (e.g. revealing only that player's own secret hand). The
+ * `secret` is a server-issued token validated by the game; an absent or wrong
+ * secret yields a spectator view. Games without hidden state ignore this.
+ */
+export interface ViewerCredential {
+  playerId: string;
+  secret?: string;
+}
+
 export type GameStatus = 'live' | 'coming-soon';
 
 /**
@@ -60,7 +71,7 @@ export interface GameMeta {
   title: string;
   description: string; // one or two short lines shown on the hub card
   status: GameStatus;
-  mascot: 'fish' | 'fox' | 'owl';
+  mascot: 'fish' | 'fox' | 'owl' | 'bear';
   /** Tailwind classes for the card's accent (border/glow + button). */
   accent: {
     glow: string;

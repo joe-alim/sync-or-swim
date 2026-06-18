@@ -11,3 +11,37 @@
     radial-gradient(700px 420px at 50% 130%, rgba(251, 191, 36, 0.14), transparent 65%);
   background-attachment: fixed;
 }
+
+/* Smoke Signals only: elevate headings with the engraved Cinzel display face
+   (the same family used on the card titles). Scoped to `.ss-elevated` so no
+   other game is affected. */
+.ss-elevated h1,
+.ss-elevated h2,
+.ss-elevated h3,
+.ss-elevated h4 {
+  font-family: var(--font-cinzel), Georgia, serif;
+  letter-spacing: 0.02em;
+}
+
+/* "Your turn" badge: a slow breathing crimson glow so it catches the eye without
+   nagging. Only the box-shadow animates — text stays at full opacity and legible. */
+.ss-turn-pop {
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+  animation: ss-turn-glow 2s ease-in-out infinite;
+}
+
+@keyframes ss-turn-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-turn-pop {
+    animation: none;
+    box-shadow: 0 0 12px 1px rgba(220, 38, 38, 0.45);
+  }
+}

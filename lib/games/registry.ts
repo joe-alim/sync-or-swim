@@ -8,11 +8,13 @@ import { GameMeta } from './types';
 import { syncOrSwimMeta } from './sync-or-swim/meta';
 import { twoTracksAndATrickMeta } from './two-tracks-and-a-trick/meta';
 import { campfireConfessionsMeta } from './campfire-confessions/meta';
+import { smokeSignalsMeta } from './smoke-signals/meta';
 
 export const GAMES: GameMeta[] = [
   syncOrSwimMeta,
   twoTracksAndATrickMeta,
   campfireConfessionsMeta,
+  smokeSignalsMeta,
 ];
 
 export function getGameMeta(slug: string): GameMeta | null {

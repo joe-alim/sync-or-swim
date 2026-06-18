@@ -6,6 +6,7 @@ import { GameMeta } from '@/lib/games/types';
 export function Mascot({ kind, className = '' }: { kind: GameMeta['mascot']; className?: string }) {
   if (kind === 'fox') return <FoxMascot className={className} />;
   if (kind === 'owl') return <OwlMascot className={className} />;
+  if (kind === 'bear') return <BearMascot className={className} />;
   return <FishMascot className={className} />;
 }
 
@@ -59,6 +60,50 @@ export function FoxMascot({ className = '' }: { className?: string }) {
         </g>
         {/* Nose */}
         <path d="M 40 52 l -5 -5 h 10 Z" fill="#1c1917" />
+      </g>
+    </svg>
+  );
+}
+
+// The Smoke Signals mascot: just the head of the warm brown bear from the hub's
+// campfire scene (see Campfire.tsx — the "BEAR (far left)" group), kept at the
+// exact same geometry/colors so it matches the header image, plus a Smokey-the-
+// Bear tan ranger hat unique to this game card (the header bear stays bare).
+// Slow head-bob + occasional blink in the shared inline-animation style.
+export function BearMascot({ className = '' }: { className?: string }) {
+  return (
+    <svg width="62" height="74" viewBox="33 -8 58 70" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <style>{`
+        @keyframes bearBob  { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-2.5px) rotate(2deg); } }
+        @keyframes bearBlink { 0%,91%,100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+        .be-head { animation: bearBob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 90%; }
+        .be-eye  { animation: bearBlink 4.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+      `}</style>
+      <g className="be-head">
+        {/* Head */}
+        <circle cx="62" cy="34" r="24" fill="#6b4f3a" />
+        {/* Ears */}
+        <circle cx="48" cy="14" r="9" fill="#6b4f3a" />
+        <circle cx="76" cy="14" r="9" fill="#6b4f3a" />
+        <circle cx="48" cy="14" r="4" fill="#8a6a4f" />
+        <circle cx="76" cy="14" r="4" fill="#8a6a4f" />
+        {/* Muzzle + nose */}
+        <ellipse cx="66" cy="42" rx="13" ry="10" fill="#cbb291" />
+        <circle cx="74" cy="40" r="3.2" fill="#1c1917" />
+        {/* Eyes */}
+        <g className="be-eye">
+          <circle cx="55" cy="30" r="3" fill="#1c1917" />
+          <circle cx="69" cy="30" r="3" fill="#1c1917" />
+        </g>
+        {/* Smokey ranger hat: Montana-peak crown + wide flat brim, across the
+            forehead so the ears flank it */}
+        <ellipse cx="62" cy="16" rx="29" ry="7" fill="#b07f30" />
+        <ellipse cx="62" cy="15" rx="29" ry="6" fill="#cf9d4e" />
+        <path d="M 49 15 Q 51 -3 62 -4 Q 73 -3 75 15 Z" fill="#cf9d4e" />
+        {/* peak creases */}
+        <path d="M 62 -4 L 58 14 M 62 -4 L 66 14 M 62 -4 L 62 14" stroke="#b07f30" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+        {/* hat band */}
+        <path d="M 49 13 Q 62 18 75 13 L 75 16 Q 62 21 49 16 Z" fill="#6f4e1f" />
       </g>
     </svg>
   );
