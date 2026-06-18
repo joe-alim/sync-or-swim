@@ -71,7 +71,9 @@ export interface GameMeta {
   title: string;
   description: string; // one or two short lines shown on the hub card
   status: GameStatus;
-  mascot: 'fish' | 'fox' | 'owl' | 'bear';
+  mascot: 'fish' | 'fox' | 'owl' | 'bear' | 'doe';
+  /** Optional extra classes for the hub card's title, e.g. an on-theme font. */
+  titleClassName?: string;
   /** Tailwind classes for the card's accent (border/glow + button). */
   accent: {
     glow: string;

@@ -13,8 +13,8 @@ import { smokeSignalsMeta } from './smoke-signals/meta';
 export const GAMES: GameMeta[] = [
   syncOrSwimMeta,
   twoTracksAndATrickMeta,
-  campfireConfessionsMeta,
   smokeSignalsMeta,
+  campfireConfessionsMeta,
 ];
 
 export function getGameMeta(slug: string): GameMeta | null {

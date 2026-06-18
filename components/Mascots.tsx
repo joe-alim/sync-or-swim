@@ -7,7 +7,33 @@ export function Mascot({ kind, className = '' }: { kind: GameMeta['mascot']; cla
   if (kind === 'fox') return <FoxMascot className={className} />;
   if (kind === 'owl') return <OwlMascot className={className} />;
   if (kind === 'bear') return <BearMascot className={className} />;
+  if (kind === 'doe') return <DoeMascot className={className} />;
   return <FishMascot className={className} />;
+}
+
+// The Smoke Signals mascot: the flower-crowned Doe Princess (the deck's value-8
+// card — see lib/games/smoke-signals/cards.ts) cropped to her head so the hub
+// tile previews the game's actual art instead of a generic animal. The portrait
+// is the same raster used on the Princess card; backgroundSize zooms in and
+// backgroundPosition frames her head (ears/crown down to the chin), which stays
+// predictable regardless of the global img sizing. Slow bob matches the others.
+export function DoeMascot({ className = '' }: { className?: string }) {
+  return (
+    <div className={`h-[72px] w-16 overflow-hidden rounded-xl ${className}`} aria-hidden="true">
+      <style>{`
+        @keyframes doeBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+        .doe-art { animation: doeBob 3.4s ease-in-out infinite; }
+      `}</style>
+      <div
+        className="doe-art h-full w-full bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/games/smoke-signals/cards/princess.webp)',
+          backgroundSize: '135% auto',
+          backgroundPosition: '50% 12%',
+        }}
+      />
+    </div>
+  );
 }
 
 export function FishMascot({ className = '' }: { className?: string }) {
@@ -65,10 +91,11 @@ export function FoxMascot({ className = '' }: { className?: string }) {
   );
 }
 
-// The Smoke Signals mascot: just the head of the warm brown bear from the hub's
-// campfire scene (see Campfire.tsx — the "BEAR (far left)" group), kept at the
-// exact same geometry/colors so it matches the header image, plus a Smokey-the-
-// Bear tan ranger hat unique to this game card (the header bear stays bare).
+// A warm brown bear head with a Smokey-the-Bear tan ranger hat: the head of the
+// bear from the hub's campfire scene (see Campfire.tsx — the "BEAR (far left)"
+// group), kept at the exact same geometry/colors so it matches the header image
+// (the header bear stays bare). Smoke Signals now uses the Doe Princess portrait
+// instead (see DoeMascot above); this stays available for future game cards.
 // Slow head-bob + occasional blink in the shared inline-animation style.
 export function BearMascot({ className = '' }: { className?: string }) {
   return (

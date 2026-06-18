@@ -26,7 +26,7 @@ export function GameCard({ meta, children }: { meta: GameMeta; children?: React.
           <Mascot kind={meta.mascot} />
         </div>
         <div>
-          <h2 className="text-2xl font-extrabold text-stone-50 leading-tight">{meta.title}</h2>
+          <h2 className={`text-2xl font-extrabold text-stone-50 leading-tight ${meta.titleClassName ?? ''}`}>{meta.title}</h2>
         </div>
       </div>
 

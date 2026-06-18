@@ -3,7 +3,7 @@ import { GameMeta } from '../types';
 export const syncOrSwimMeta: GameMeta = {
   slug: 'sync-or-swim',
   title: 'Sync or Swim',
-  description: 'Match your teammates’ answers to the same prompt. Think alike to score — first to 25 wins.',
+  description: 'Match your teammates’ answers to the same prompt. Think alike to score — first to 25 wins. Inspired by Blank Slate.',
   status: 'live',
   mascot: 'fish',
   accent: {
