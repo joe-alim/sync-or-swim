@@ -9,7 +9,77 @@ export function Mascot({ kind, className = '' }: { kind: GameMeta['mascot']; cla
   if (kind === 'bear') return <BearMascot className={className} />;
   if (kind === 'doe') return <DoeMascot className={className} />;
   if (kind === 'skunk') return <SkunkMascot className={className} />;
+  if (kind === 'campfire') return <CampfireMascot className={className} />;
   return <FishMascot className={className} />;
+}
+
+// The Smoke Signals mascot: the hub's centerpiece campfire (see Campfire.tsx —
+// the "CAMPFIRE (center)" group), condensed into a single mascot tile. Same
+// crossed logs + three nested flame layers (orange/amber/pale) + rising embers
+// and a soft firelight glow, redrawn to fill the small square. Curling smoke
+// wisps drift up behind the fire — the game's literal "smoke signals" — and
+// read against the dark hub tile in pale slate-grey. Flicker/ember/smoke
+// animations mirror the header fire but use a private `csf-` class prefix so
+// they never collide with Campfire.tsx's global `cf-` rules on the hub page.
+export function CampfireMascot({ className = '' }: { className?: string }) {
+  return (
+    <svg width="72" height="80" viewBox="0 0 72 84" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <defs>
+        <radialGradient id="csfGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fb923c" stopOpacity="0.55" />
+          <stop offset="45%" stopColor="#f97316" stopOpacity="0.26" />
+          <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+        </radialGradient>
+        <filter id="csfSmokeBlur" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="1" />
+        </filter>
+      </defs>
+      <style>{`
+        @keyframes csfFlame  { 0%,100% { transform: scaleY(1) scaleX(1); } 25% { transform: scaleY(1.08) scaleX(0.96); } 50% { transform: scaleY(0.94) scaleX(1.04); } 75% { transform: scaleY(1.04) scaleX(0.98); } }
+        @keyframes csfInner  { 0%,100% { transform: scaleY(1); opacity: 1; } 50% { transform: scaleY(0.88); opacity: 0.85; } }
+        @keyframes csfGlow   { 0%,100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+        @keyframes csfEmber  { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-26px) translateX(4px); opacity: 0; } }
+        @keyframes csfSmoke  { 0%,100% { transform: translateY(3px); opacity: 0.12; } 50% { transform: translateY(-8px); opacity: 0.40; } }
+        .csf-flame { animation: csfFlame 1.1s ease-in-out infinite;  transform-box: fill-box; transform-origin: 50% 100%; }
+        .csf-inner { animation: csfInner 0.7s ease-in-out infinite;  transform-box: fill-box; transform-origin: 50% 100%; }
+        .csf-glow  { animation: csfGlow 2.4s ease-in-out infinite;   transform-box: fill-box; transform-origin: 50% 50%; }
+        .csf-e1    { animation: csfEmber 2.2s ease-in infinite; }
+        .csf-e2    { animation: csfEmber 2.6s ease-in infinite 0.7s; }
+        .csf-e3    { animation: csfEmber 2.0s ease-in infinite 1.3s; }
+        .csf-s1    { animation: csfSmoke 5.6s ease-in-out infinite;      transform-box: fill-box; transform-origin: 50% 100%; }
+        .csf-s2    { animation: csfSmoke 6.6s ease-in-out 1.3s infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+        .csf-s3    { animation: csfSmoke 6.0s ease-in-out 2.6s infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+      `}</style>
+
+      {/* Curling smoke wisps drifting up behind the fire */}
+      <g filter="url(#csfSmokeBlur)" fill="none" stroke="#cbd5e1" strokeLinecap="round" strokeLinejoin="round">
+        <g className="csf-s2"><path strokeWidth="3.2" d="M 36 42 C 30 33 42 29 36 20 C 31 12 41 8 36 2" /></g>
+        <g className="csf-s1"><path strokeWidth="2.8" d="M 22 46 C 17 38 26 34 21 27 C 17 20 24 16 21 11" /></g>
+        <g className="csf-s3"><path strokeWidth="2.8" d="M 50 46 C 55 38 46 34 51 27 C 55 20 48 16 51 11" /></g>
+      </g>
+
+      {/* Soft firelight glow */}
+      <ellipse className="csf-glow" cx="36" cy="56" rx="30" ry="26" fill="url(#csfGlow)" />
+
+      {/* Crossed logs at the base */}
+      <rect x="10" y="68" width="52" height="8" rx="4" fill="#8b5a2b" transform="rotate(-15 36 72)" />
+      <rect x="10" y="68" width="52" height="8" rx="4" fill="#6b4423" transform="rotate(15 36 72)" />
+
+      {/* Rising embers */}
+      <circle className="csf-e1" cx="30" cy="58" r="1.8" fill="#fbbf24" />
+      <circle className="csf-e2" cx="44" cy="56" r="1.5" fill="#fb923c" />
+      <circle className="csf-e3" cx="37" cy="60" r="1.2" fill="#fde68a" />
+
+      {/* Three nested flame layers */}
+      <g className="csf-flame">
+        <path d="M 36 22 C 53 40, 58 56, 51 70 C 46 79, 26 79, 21 70 C 14 56, 19 40, 36 22 Z" fill="#f97316" />
+        <path d="M 36 34 C 48 47, 51 60, 46 70 C 43 76, 29 76, 26 70 C 21 60, 24 47, 36 34 Z" fill="#fbbf24" />
+      </g>
+      <g className="csf-inner">
+        <path d="M 36 46 C 43 55, 44 63, 41 70 C 39 74, 33 74, 31 70 C 28 63, 30 55, 36 46 Z" fill="#fde68a" />
+      </g>
+    </svg>
+  );
 }
 
 // The Smoke Signals mascot: the flower-crowned Doe Princess (the deck's value-8

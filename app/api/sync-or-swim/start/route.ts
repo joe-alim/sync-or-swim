@@ -24,8 +24,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const playerCount = Object.keys(room.players).length;
-  if (playerCount < 2) {
-    return NextResponse.json({ error: 'Need at least 2 players to start' }, { status: 400 });
+  if (playerCount < 3) {
+    return NextResponse.json({ error: 'Need at least 3 players to start' }, { status: 400 });
   }
 
   const card = room.game.deck.pop();

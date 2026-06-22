@@ -71,7 +71,7 @@ export interface GameMeta {
   title: string;
   description: string; // one or two short lines shown on the hub card
   status: GameStatus;
-  mascot: 'fish' | 'fox' | 'owl' | 'bear' | 'doe' | 'skunk';
+  mascot: 'fish' | 'fox' | 'owl' | 'bear' | 'doe' | 'skunk' | 'campfire';
   /** Supported player-count range, shown as a badge on the hub card. */
   players: { min: number; max: number };
   /** Optional extra classes for the hub card's title, e.g. an on-theme font. */

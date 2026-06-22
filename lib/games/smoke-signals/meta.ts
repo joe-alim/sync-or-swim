@@ -5,7 +5,7 @@ export const smokeSignalsMeta: GameMeta = {
   title: 'Smoke Signals',
   description: 'Send your message through the campfire smoke and outlast the circle. A campfire-themed take inspired by Love Letter.',
   status: 'live',
-  mascot: 'skunk',
+  mascot: 'campfire',
   players: { min: 2, max: 8 },
   // On-theme engraved display face for the hub title (the in-game UI already
   // uses Cinzel — see app/globals.css).
