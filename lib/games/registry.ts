@@ -9,12 +9,14 @@ import { syncOrSwimMeta } from './sync-or-swim/meta';
 import { twoTracksAndATrickMeta } from './two-tracks-and-a-trick/meta';
 import { campfireConfessionsMeta } from './campfire-confessions/meta';
 import { smokeSignalsMeta } from './smoke-signals/meta';
+import { campfireBluffMeta } from './campfire-bluff/meta';
 
 export const GAMES: GameMeta[] = [
   syncOrSwimMeta,
   twoTracksAndATrickMeta,
   smokeSignalsMeta,
   campfireConfessionsMeta,
+  campfireBluffMeta,
 ];
 
 export function getGameMeta(slug: string): GameMeta | null {

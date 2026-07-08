@@ -5,6 +5,7 @@ import { SmokeSignalsRules } from './SmokeSignalsRules';
 import { SmokeSignalsCardReference } from './SmokeSignalsCardReference';
 import { SyncOrSwimRules } from './SyncOrSwimRules';
 import { TwoTracksRules } from './TwoTracksRules';
+import { CampfireBluffRules } from './CampfireBluffRules';
 
 interface GamePreview {
   /** How-to-play modal. */
@@ -24,5 +25,8 @@ export const GAME_PREVIEWS: Record<string, GamePreview> = {
   },
   'two-tracks-and-a-trick': {
     rules: ({ onClose }) => <TwoTracksRules onClose={onClose} />,
+  },
+  'campfire-bluff': {
+    rules: ({ onClose }) => <CampfireBluffRules onClose={onClose} />,
   },
 };
