@@ -7,6 +7,7 @@ import { Room, ClientRoom, ViewerCredential } from './types';
 import * as syncOrSwim from './sync-or-swim/logic';
 import * as twoTracks from './two-tracks-and-a-trick/logic';
 import * as smokeSignals from './smoke-signals/logic';
+import * as campfireBluff from './campfire-bluff/logic';
 
 export interface GameModule {
   slug: string;
@@ -34,6 +35,11 @@ const MODULES: Record<string, GameModule> = {
     slug: smokeSignals.SLUG,
     createRoom: smokeSignals.createRoom,
     sanitize: smokeSignals.sanitize as unknown as GameModule['sanitize'],
+  },
+  [campfireBluff.SLUG]: {
+    slug: campfireBluff.SLUG,
+    createRoom: campfireBluff.createRoom,
+    sanitize: campfireBluff.sanitize as unknown as GameModule['sanitize'],
   },
 };
 
