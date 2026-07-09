@@ -15,8 +15,8 @@ export const GAMES: GameMeta[] = [
   syncOrSwimMeta,
   twoTracksAndATrickMeta,
   smokeSignalsMeta,
-  campfireConfessionsMeta,
   campfireBluffMeta,
+  campfireConfessionsMeta,
 ];
 
 export function getGameMeta(slug: string): GameMeta | null {
